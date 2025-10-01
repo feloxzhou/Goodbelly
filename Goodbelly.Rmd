@@ -1,0 +1,297 @@
+---
+title: "Goodbelly"
+output: pdf_document
+---
+
+```{r}
+library(corrplot)
+library(dplyr)
+library(car)
+
+Goodbelly_data <- read.csv("Goodbelly_d.csv")
+Goodbelly <- Goodbelly_data[4:12]
+
+```
+```{r}
+data_region <- Goodbelly_data %>% group_by(Region) %>% summarize(AverageSales = mean(Units.Sold, na.rm = TRUE))  %>% arrange(desc(AverageSales))
+
+library(ggplot2)
+
+# Create a bar plot using ggplot2
+ggplot(data_region, aes(x = Region, y = AverageSales)) +
+  geom_bar(stat = "identity", fill = "skyblue", color = "black") +
+  labs(title = "Average Sales by Region", x = "Region", y = "Average Sales") +
+  theme_minimal()
+
+
+```
+
+```{r}
+
+summary(lm(Units.Sold ~ ., Goodbelly))
+
+model <- lm(Units.Sold ~ ., Goodbelly)
+vif(model)
+corrplot(cor(Goodbelly))
+
+gb_model <- (lm(Units.Sold ~ Average.Retail.Price 
+           + Sales.Rep + Endcap + Demo + Demo1.3 + Demo4.5, Goodbelly))
+
+summary(lm(Units.Sold ~ Average.Retail.Price 
+           + Sales.Rep + Endcap + Demo + Demo1.3 + Demo4.5 , Goodbelly))
+
+
+summary((lm(Units.Sold ~ Average.Retail.Price 
+           + Sales.Rep * Endcap + Endcap * Demo + Demo1.3 * Sales.Rep + Demo1.3 + Demo4.5, Goodbelly)))
+```
+
+
+```{r}
+###No sales.rep/Endcap
+#Atleast 1 demo
+Demo <- Goodbelly %>% filter(Sales.Rep == 0, Endcap == 0, Demo == 1 | Demo1.3 == 1 | Demo4.5 == 1)
+x_us <- Demo %>% summarize(average_units = mean(Units.Sold))
+
+#Only 1 demo
+Demo1 <- Goodbelly %>% filter(Sales.Rep == 0, Endcap == 0, Demo == 1, Demo1.3 == 0, Demo4.5 == 0)
+x_us1 <- Demo1 %>% summarize(average_units1 = mean(Units.Sold))
+
+#Only 2 demo
+Demo2 <- Goodbelly %>% filter(Sales.Rep == 0, Endcap == 0, Demo == 0, Demo1.3 == 1, Demo4.5 == 0)
+x_us2 <- Demo2 %>% summarize(average_units1.3 = mean(Units.Sold))
+
+#Only 3 demo
+Demo3 <- Goodbelly %>% filter(Sales.Rep == 0, Endcap == 0, Demo == 0, Demo1.3 == 0, Demo4.5 == 1)
+x_us3 <- Demo3 %>% summarize(average_units4.5 = mean(Units.Sold))
+
+#No Demo
+DemoX <- Goodbelly %>% filter(Sales.Rep == 0, Endcap == 0, Demo == 0, Demo1.3 == 0, Demo4.5 == 0)
+x_usX <- DemoX %>% summarize(average = mean(Units.Sold))
+
+averages <- c(x_us1$average_units1, x_us2$average_units1.3, x_us3$average_units4.5,x_usX$average)
+
+barplot(averages, names.arg = c("Demo1", "Demo1.3", "Demo4.5", "No Demo"), main = "Average Units Sold - One Demo")
+
+demo_nodemo <- c(x_us$average_units, x_usX$average)
+barplot(demo_nodemo, names.arg = c("Demo", "No Demo"), main = "Demo Effect", ylim = c(0,300))
+
+```
+######
+
+```{r}
+#Demo and sales rep
+Demo_sales <- Goodbelly %>% filter(Sales.Rep == 1, Endcap == 0, Demo == 1 | Demo1.3 == 1 | Demo4.5 == 1)
+x_us_sales <- Demo_sales %>% summarize(average_units = mean(Units.Sold))
+
+#Only 1 demo
+Demo1_sales <- Goodbelly %>% filter(Sales.Rep == 1, Endcap == 0, Demo == 1, Demo1.3 == 0, Demo4.5 == 0)
+x_us1_sales <- Demo1_sales %>% summarize(average_units1 = mean(Units.Sold))
+
+#Only 2 demo
+Demo2_sales <- Goodbelly %>% filter(Sales.Rep == 1, Endcap == 0, Demo == 0, Demo1.3 == 1, Demo4.5 == 0)
+x_us2_sales <- Demo2_sales %>% summarize(average_units1.3 = mean(Units.Sold))
+
+#Only 3 demo
+Demo3_sales <- Goodbelly %>% filter(Sales.Rep == 1, Endcap == 0, Demo == 0, Demo1.3 == 0, Demo4.5 == 1)
+x_us3_sales <- Demo3_sales %>% summarize(average_units4.5 = mean(Units.Sold))
+
+#No Demo
+DemoX_sales <- Goodbelly %>% filter(Sales.Rep == 1, Endcap == 0, Demo == 0, Demo1.3 == 0, Demo4.5 == 0)
+x_usX_sales <- DemoX_sales %>% summarize(average = mean(Units.Sold))
+
+#No Demo
+no_sales <- Goodbelly %>% filter(Sales.Rep == 0, Endcap == 0, Demo == 0, Demo1.3 == 0, Demo4.5 == 0)
+x_no_sales <- no_sales %>% summarize(average = mean(Units.Sold))
+
+s <- c(x_usX_sales$average, x_no_sales$average)
+
+
+averages_sales <- c (x_us1_sales$average_units1, x_us2_sales$average_units1.3, x_us3_sales$average_units4.5,x_usX_sales$average)
+
+barplot(averages_sales, names.arg = c( "Demo1", "Demo1.3", "Demo4.5", "No Demo"), main = "Average Units Sold - Demo & Sales Rep")
+
+barplot(s, names.arg = c( "Sales Rep", "No Sales Rep"), main = "Average Units Sold - Sales Rep")
+```
+
+
+```{r}
+d1.3 <- Goodbelly_data %>% filter(Sales.Rep == 1, Endcap == 0, Demo == 0, Demo1.3 == 1, Demo4.5 == 0)  %>% group_by(Region)  %>% summarize(average_units = mean(Units.Sold), average_price = mean(Average.Retail.Price))  %>% arrange(average_units)  %>% mutate(sales = average_price * average_units)
+
+d4.5 <- Goodbelly_data %>% filter(Sales.Rep == 1, Endcap == 0, Demo == 0, Demo1.3 == 0, Demo4.5 == 1) %>% group_by(Region)  %>%summarize(average_units = mean(Units.Sold), average_price = mean(Average.Retail.Price))  %>% arrange(average_units) %>% mutate(sales = average_price * average_units)
+#RM,NC, NE, SP, PN, MW
+
+#Average price is higher
+
+
+
+ggplot() +
+  geom_line(data = d1.3, aes(x = Region, y = average_price, group = "Sales"), color = "blue", size = 1, linetype = "solid") +
+  geom_line(data = d4.5, aes(x = Region, y = average_price, group = "Another Variable"), color = "red", size = 1, linetype = "dashed") +
+  labs(title = "Average Prices (Demo1.3 vs 4.5)", x = "Region", y = "Prices")
+
+
+
+```
+
+```{r}
+#Endcap
+endcap <- Goodbelly %>% filter(Sales.Rep == 0, Endcap == 1, Demo == 0 , Demo1.3 == 0 , Demo4.5 == 0)
+endcap_avg <- endcap %>% summarize(average_units = mean(Units.Sold))
+
+no_endcap <- Goodbelly %>% filter(Sales.Rep == 0, Endcap == 0, Demo == 0 , Demo1.3 == 0 , Demo4.5 == 0)
+no_endcap_avg <- no_endcap %>% summarize(average_units = mean(Units.Sold))
+
+ecap <- c( no_endcap_avg$average_units, endcap_avg$average_units)
+barplot(ecap, names.arg = c("Endcap", "No Endcap"), main = "Average Units Sold - Endcap placement", ylim = c(0,200))
+
+```
+
+
+
+
+
+```{r}
+#Endcap
+Demo_end <- Goodbelly %>% filter(Sales.Rep == 0, Endcap == 1, Demo == 1 | Demo1.3 == 1 | Demo4.5 == 1)
+x_us_end <- Demo_end %>% summarize(average_units = mean(Units.Sold))
+
+#Only 1 demo
+Demo1_end <- Goodbelly %>% filter(Sales.Rep == 0, Endcap == 1, Demo == 1, Demo1.3 == 0, Demo4.5 == 0)
+x_us1_end <- Demo1_end %>% summarize(average_units1 = mean(Units.Sold))
+
+#Only 2 demo
+Demo2_end <- Goodbelly %>% filter(Sales.Rep == 0, Endcap == 1, Demo == 0, Demo1.3 == 1, Demo4.5 == 0)
+x_us2_end <- Demo2_end %>% summarize(average_units1.3 = mean(Units.Sold))
+
+#Only 3 demo
+Demo3_end <- Goodbelly %>% filter(Sales.Rep == 0, Endcap == 1, Demo == 0, Demo1.3 == 0, Demo4.5 == 1)
+x_us3_end <- Demo3_end %>% summarize(average_units4.5 = mean(Units.Sold))
+
+#No Demo
+DemoX_end <- Goodbelly %>% filter(Sales.Rep == 0, Endcap == 1, Demo == 0, Demo1.3 == 0, Demo4.5 == 0)
+x_usX_end <- DemoX_end %>% summarize(average = mean(Units.Sold))
+
+
+averages_sales <- c(x_usX_end$average, x_us1_end$average_units1, x_us2_end$average_units1.3, x_us3_end$average_units4.5)
+
+barplot(averages_sales, names.arg = c("No Demo", "Demo1", "Demo1.3", "Demo4.5"), main = "Average Units Sold - Demo & Endcap")
+```
+
+```{r}
+Goodbelly_data %>% filter(Sales.Rep == 1, Endcap == 1, Demo == 0, Demo1.3 == 0, Demo4.5 == 0)
+
+x1 <- Goodbelly_data %>% filter(Sales.Rep == 0, Endcap == 1, Demo == 1, Demo1.3 == 0, Demo4.5 == 0) %>% group_by(Region)  %>%summarize(average_units = mean(Units.Sold), average_price = mean(Average.Retail.Price))  %>% arrange(average_units) %>% mutate(sales = average_price * average_units)
+
+
+x2 <- Goodbelly_data %>% filter(Sales.Rep == 0, Endcap == 1, Demo == 0, Demo1.3 == 1, Demo4.5 == 0) %>% group_by(Region)  %>%summarize(average_units = mean(Units.Sold), average_price = mean(Average.Retail.Price))  %>% arrange(average_units) %>% mutate(sales = average_price * average_units)
+
+x3 <- Goodbelly_data %>% filter(Sales.Rep == 0, Endcap == 1, Demo == 0, Demo1.3 == 0, Demo4.5 == 1) %>% group_by(Region)  %>%summarize(average_units = mean(Units.Sold), average_price = mean(Average.Retail.Price))  %>% arrange(average_units) %>% mutate(sales = average_price * average_units)
+
+combined_demoendcap <- bind_rows(x1,x2,x3)
+#da <- c(x1$sales, x2$sales, x3$sales)
+#barplot(da, names.arg = c("Demo1.3", "Demo4.5"))
+
+ggplot(combined_demoendcap, aes(x = average_units, y =average_price, color = c("Demo1", "Demo1.3", "Demo4.5"))) +
+  geom_point(size = 5) +
+  labs(title = "Relationship Between Price and Units Sold",
+       x = "Average Price",
+       y = "Average Units Sold",
+       color = "Demo") +
+  facet_wrap(~Region, scales = "free")
+
+```
+
+
+
+
+
+
+```{r}
+#Demo and sales rep
+Demo_total <- Goodbelly %>% filter(Sales.Rep == 1, Endcap == 1, Demo == 1 | Demo1.3 == 1 | Demo4.5 == 1)
+x_us_total <- Demo_total %>% summarize(average_units = mean(Units.Sold))
+
+#Only 1 demo
+Demo1_total <- Goodbelly %>% filter(Sales.Rep == 1, Endcap == 1, Demo == 1, Demo1.3 == 0, Demo4.5 == 0)
+x_us1_total <- Demo1_total %>% summarize(average_units1 = mean(Units.Sold))
+
+#Only 2 demo
+Demo2_total <- Goodbelly %>% filter(Sales.Rep == 1, Endcap == 1, Demo == 0, Demo1.3 == 1, Demo4.5 == 0)
+x_us2_total <- Demo2_total %>% summarize(average_units1.3 = mean(Units.Sold))
+
+#Only 3 demo
+Demo3_total <- Goodbelly %>% filter(Sales.Rep == 1, Endcap == 1, Demo == 0, Demo1.3 == 0, Demo4.5 == 1)
+x_us3_total <- Demo3_total %>% summarize(average_units4.5 = mean(Units.Sold))
+
+#No Demo
+DemoX_total <- Goodbelly %>% filter(Sales.Rep == 1, Endcap == 1, Demo == 0, Demo1.3 == 0, Demo4.5 == 0)
+x_usX_total <- DemoX_total %>% summarize(average = mean(Units.Sold))
+
+
+averages_sales <- c(x_us1_total$average_units1, x_us2_total$average_units1.3, x_us3_total$average_units4.5, x_usX_total$average)
+
+barplot(averages_sales, names.arg = c( "Demo1", "Demo1.3", "Demo4.5", "No Demo"), main = "Average Sales - Demo & Sales Rep & Endcap")
+```
+```{r}
+
+
+
+```
+
+
+```{r}
+Using the final regression model, predict sales at a store where the average price is
+$4, with no sales rep, no endcap, and a demonstration 3 weeks ago.
+
+Final_reg <- Goodbelly %>% filter(Sales.Rep == 0, Endcap == 0, Demo == 0, Demo1.3 == 1, Demo4.5 == 0)
+summary(lm(Units.Sold ~ ., Final_reg))
+
+
+
+```
+
+
+```{r}
+
+#demo_1 <- Goodbelly %>% filter(Demo == 1 & Demo1.3 == 1 | Demo1.3 == 1 & Demo4.5 == 1 | Demo == 1 & Demo4.5 == 1| Demo == 1 & Demo1.3 == 1 & Demo4.5 == 1)
+
+
+demo1_1.3 <- Goodbelly %>% filter(Endcap == 0 &Demo == 1 & Demo1.3 == 1 & Demo4.5 == 0) 
+demo1_1.3_avg <- demo1_1.3 %>% summarize(average_units = mean(Units.Sold))
+
+demo1_4.5 <- Goodbelly %>% filter(Endcap == 0 & Demo == 1 & Demo1.3 == 0 & Demo4.5 == 1) 
+demo1_4.5_avg <- demo1_4.5 %>% summarize(average_units = mean(Units.Sold))
+
+demo1.3_4.5 <- Goodbelly %>% filter(Endcap == 0 & Demo == 0 & Demo1.3 == 1 & Demo4.5 == 1)
+demo1.3_4.5_avg <- demo1.3_4.5 %>% summarize(average_units = mean(Units.Sold))
+
+demo_all <- Goodbelly %>% filter(Endcap == 0 & Demo == 1 & Demo1.3 == 1 & Demo4.5 == 1) 
+demo_all_avg <- demo_all %>% summarize(average_units = mean(Units.Sold))
+
+#####
+average_demo_plus <- c(demo_all_avg$average_units, demo1_1.3_avg$average_units, demo1_4.5_avg$average_units, demo1.3_4.5_avg$average_units)
+
+barplot(average_demo_plus, names.arg = c("All Demos", "Demo1 & 1.3", "Demo1 & 4.5", "Demo1.3 & 4.5"), main = "Average Units Sold -  1+ Demo")
+
+```
+
+```{r}
+
+demo1_1.3_end <- Goodbelly %>% filter(Sales.Rep == 1, Endcap == 1 , Demo == 0 , Demo1.3 == 0 , Demo4.5 == 0) 
+demo1_1.3_avg_end <- demo1_1.3_end %>% summarize(average_units = mean(Units.Sold))
+
+demo1_4.5_end <- Goodbelly %>% filter(Sales.Rep == 1 ,Endcap == 0 , Demo == 0 , Demo1.3 == 0 , Demo4.5 == 0) 
+demo1_4.5_avg_end <- demo1_4.5_end %>% summarize(average_units = mean(Units.Sold))
+
+demo1.3_4.5_end <- Goodbelly %>% filter(Sales.Rep == 0 , Endcap == 1 & Demo == 0 , Demo1.3 == 0 , Demo4.5 == 0)
+demo1.3_4.5_avg_end <- demo1.3_4.5_end %>% summarize(average_units = mean(Units.Sold))
+
+demo_all_end <- Goodbelly %>% filter(Sales.Rep == 0 , Endcap == 0 & Demo == 0 , Demo1.3 == 0,  Demo4.5 == 0) 
+demo_all_avg_end <- demo_all_end %>% summarize(average_units = mean(Units.Sold))
+
+average_demo_plus_end <- c(demo1_1.3_avg_end$average_units, demo1_4.5_avg_end$average_units, demo1.3_4.5_avg_end$average_units, demo_all_avg_end$average_units)
+
+barplot(average_demo_plus_end, names.arg = c("Sales Rep & Endcap", "Sales Rep", "Endcap", "No Sales Rep or Endcap"), main = "Sales Rep & Endcap")
+
+
+```
